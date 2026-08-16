@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="system">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocalis | Natural Text to Speech</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                <span>Vocalis</span>
+            </div>
+            <nav class="main-nav">
+                <button class="nav-btn active" data-target="workspace">Workspace</button>
+                <button class="nav-btn" data-target="history">History</button>
+            </nav>
+            <div class="theme-toggle">
+                <select id="theme-selector" aria-label="Select Theme">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <section id="workspace" class="view-section active">
+            <div class="hero">
+                <h1>Turn your words into natural voices.</h1>
+                <p>Create expressive speech from text in seconds.</p>
+            </div>
+            
+            <div class="workspace-grid">
+                <!-- Editor Panel -->
+                <div class="panel editor-panel">
+                    <div class="editor-header">
+                        <h2>Text Editor</h2>
+                        <button id="clear-text" class="btn-ghost btn-sm">Clear</button>
+                    </div>
+                    <div class="editor-body">
+                        <textarea id="text-input" placeholder="Write something you want to hear..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="editor-footer">
+                        <span id="char-count">0 / 5000 characters</span>
+                        <span id="word-count">0 words</span>
+                    </div>
+                </div>
+
+                <!-- Settings Panel -->
+                <div class="panel settings-panel">
+                    <h2>Voice Settings</h2>
+
+                    <!-- Engine Switch -->
+                    <div class="form-group">
+                        <label>Voice Engine</label>
+                        <div class="engine-toggle">
+                            <button type="button" id="engine-browser-btn" class="engine-btn active" data-engine="browser">
+                                <span class="engine-btn-title">Browser</span>
+                                <span class="engine-btn-sub">Gratis & Offline</span>
+                            </button>
+                            <button type="button" id="engine-premium-btn" class="engine-btn" data-engine="elevenlabs">
+                                <span class="engine-badge">GRATIS</span>
+                                <span class="engine-btn-title">AI Natural</span>
+                                <span class="engine-btn-sub">Tanpa Kartu Kredit</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Browser Language + Voice select -->
+                    <div id="browser-voice-group">
+                        <div class="form-group">
+                            <label for="language-select">Language</label>
+                            <select id="language-select" disabled>
+                                <option value="">Loading languages...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="voice-select">Voice</label>
+                            <select id="voice-select" disabled>
+                                <option value="">Select a voice...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="api-key-section" class="form-group api-key-group hidden"></div>
+
+                    <!-- AI connected status -->
+                    <div id="premium-connected" class="form-group hidden">
+                        <div class="premium-status">
+                            <span class="premium-status-dot"></span>
+                            <span>Suara AI siap dipakai</span>
+                        </div>
+                        <p class="api-key-hint">Otomatis mendukung 29+ bahasa mengikuti teks yang kamu tulis tidak perlu pilih bahasa manual.</p>
+                    </div>
+
+                    <!-- Premium voice gallery -->
+                    <div id="voice-gallery-wrap" class="form-group hidden">
+                        <label>Pilih Karakter Suara</label>
+                        <div id="voice-gallery" class="voice-gallery">
+                            <div class="gallery-loading">Memuat daftar suara...</div>
+                        </div>
+                    </div>
+
+                    <!-- Browser sliders -->
+                    <div id="browser-sliders">
+                        <div class="form-group recording-box">
+                            <button type="button" id="record-toggle-btn" class="btn-ghost btn-sm">🎙️ Aktifkan Rekam &amp; Unduh</button>
+                            <p class="api-key-hint">Eksperimental sekali klik akan minta izin "share tab ini" (centang "share audio"), lalu suara Browser bisa diunduh sebagai .webm. Paling stabil di Chrome/Edge desktop.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="range-header">
+                                <label for="speed-range">Speed</label>
+                                <span id="speed-val">1x</span>
+                            </div>
+                            <input type="range" id="speed-range" min="0.5" max="2" step="0.1" value="1">
+                            <div class="range-marks">
+                                <span>0.5x</span>
+                                <span>1x</span>
+                                <span>2x</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="range-header">
+                                <label for="pitch-range">Pitch</label>
+                                <span id="pitch-val">1</span>
+                            </div>
+                            <input type="range" id="pitch-range" min="0" max="2" step="0.1" value="1">
+                            <div class="range-marks">
+                                <span>Low</span>
+                                <span>Normal</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Premium sliders -->
+                    <div id="premium-sliders" class="hidden">
+                        <div class="form-group">
+                            <div class="range-header">
+                                <label for="stability-range">Stability</label>
+                                <span id="stability-val">0.50</span>
+                            </div>
+                            <input type="range" id="stability-range" min="0" max="1" step="0.05" value="0.5">
+                            <div class="range-marks">
+                                <span>Ekspresif</span>
+                                <span>Seimbang</span>
+                                <span>Stabil</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="range-header">
+                                <label for="similarity-range">Similarity</label>
+                                <span id="similarity-val">0.75</span>
+                            </div>
+                            <input type="range" id="similarity-range" min="0" max="1" step="0.05" value="0.75">
+                            <div class="range-marks">
+                                <span>Longgar</span>
+                                <span>Seimbang</span>
+                                <span>Ketat</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="generate-btn" class="btn-primary btn-block" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Generate Voice
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div id="audio-player" class="player-panel hidden">
+                <div class="player-controls">
+                    <button id="play-pause-btn" class="btn-icon play-btn" aria-label="Play/Pause">
+                        <svg class="icon-play" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <svg class="icon-pause hidden" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    </button>
+                    <div class="player-timeline">
+                        <span id="time-current">00:00</span>
+                        <div class="progress-bar-container">
+                            <div id="progress-bar" class="progress-bar"></div>
+                        </div>
+                        <span id="time-total">--:--</span>
+                    </div>
+                    <div class="player-actions">
+                        <!-- Download hanya aktif ketika provider aktif -->
+                        <a id="download-btn" class="btn-ghost btn-sm hidden" download>Download</a>
+                        <button id="stop-btn" class="btn-ghost btn-sm">Stop</button>
+                    </div>
+                </div>
+                <div id="visualizer" class="visualizer hidden">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="history" class="view-section">
+            <div class="history-header">
+                <h2>Generation History</h2>
+                <button id="clear-history-btn" class="btn-ghost btn-sm">Clear All</button>
+            </div>
+            <div id="history-list" class="history-list">
+
+            </div>
+            <div id="history-empty" class="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <p>No audio generated yet.</p>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

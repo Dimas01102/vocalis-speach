@@ -1,45 +1,36 @@
 import { BaseProvider } from './base-provider.js';
 
-const API_BASE = 'https://api.elevenlabs.io/v1';
-// eleven_multilingual_v2 supports 29+ languages and auto-detects the
-// language from the input text, so there's no need for a language picker.
-const MODEL_ID = 'eleven_multilingual_v2';
-
 export class ElevenLabsProvider extends BaseProvider {
     constructor() {
         super();
         this.name = 'ElevenLabs AI';
         this.capabilities = { pitch: false, rate: false, download: true };
-        this.apiKey = '';
         this.voices = [];
         this.currentAudio = null;
         this.currentObjectUrl = null;
         this.lastVoiceName = 'voice';
+
+        this.accessCode = '';
     }
 
-    setApiKey(key) {
-        this.apiKey = (key || '').trim();
+    setAccessCode(code) {
+        this.accessCode = (code || '').trim();
     }
 
-    hasApiKey() {
-        return this.apiKey.length > 0;
+    _headers(extra = {}) {
+        const headers = { ...extra };
+        if (this.accessCode) headers['x-app-access-code'] = this.accessCode;
+        return headers;
     }
 
     async init() {
-        // Nothing to warm up until an API key is supplied — getVoices()
-        // fetches on demand once setApiKey() has been called.
         return true;
     }
 
     async getVoices() {
-        if (!this.hasApiKey()) return [];
-
-        const res = await fetch(`${API_BASE}/voices`, {
-            headers: { 'xi-api-key': this.apiKey }
-        });
-
+        const res = await fetch('/api/voices', { headers: this._headers() });
         if (!res.ok) {
-            throw await this._toError(res, 'Failed to load voices from ElevenLabs.');
+            throw await this._toError(res, 'Failed to load voices.');
         }
 
         const data = await res.json();
@@ -57,10 +48,6 @@ export class ElevenLabsProvider extends BaseProvider {
     }
 
     async synthesize(text, options, onProgress, onEnd, onError) {
-        if (!this.hasApiKey()) {
-            onError({ error: 'no-api-key', message: 'Connect your ElevenLabs API key first.' });
-            return;
-        }
         if (!options.voiceURI) {
             onError({ error: 'no-voice', message: 'Please pick a voice first.' });
             return;
@@ -73,37 +60,29 @@ export class ElevenLabsProvider extends BaseProvider {
 
         let res;
         try {
-            res = await fetch(`${API_BASE}/text-to-speech/${options.voiceURI}?output_format=mp3_44100_128`, {
+            res = await fetch('/api/tts', {
                 method: 'POST',
-                headers: {
-                    'xi-api-key': this.apiKey,
-                    'Content-Type': 'application/json',
-                    'Accept': 'audio/mpeg'
-                },
+                headers: this._headers({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     text,
-                    model_id: MODEL_ID,
-                    voice_settings: {
-                        stability: options.stability ?? 0.5,
-                        similarity_boost: options.similarity ?? 0.75
-                    }
+                    voiceId: options.voiceURI,
+                    stability: options.stability ?? 0.5,
+                    similarity: options.similarity ?? 0.75
                 })
             });
         } catch (networkErr) {
-            onError({ error: 'network', message: 'Could not reach ElevenLabs. Check your internet connection.' });
+            onError({ error: 'network', message: 'Tidak bisa terhubung ke server.' });
             return;
         }
 
         if (!res.ok) {
             const err = await this._toError(res, 'Failed to generate voice.');
-            onError({ error: 'api-error', message: err.message });
+            onError({ error: 'api-error', message: err.message, status: err.status });
             return;
         }
 
         const blob = await res.blob();
 
-        // Replace any previous object URL so we don't leak memory across
-        // repeated generations.
         if (this.currentObjectUrl) {
             URL.revokeObjectURL(this.currentObjectUrl);
         }
@@ -155,7 +134,7 @@ export class ElevenLabsProvider extends BaseProvider {
 
     getDownloadInfo() {
         if (!this.currentObjectUrl) return null;
-        const safeName = this.lastVoiceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'voice';
+        const safeName = (this.lastVoiceName || 'voice').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'voice';
         return {
             url: this.currentObjectUrl,
             filename: `vocalis-${safeName}-${Date.now()}.mp3`
@@ -166,14 +145,10 @@ export class ElevenLabsProvider extends BaseProvider {
         let message = fallbackMessage;
         try {
             const data = await res.json();
-            message = data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : null) || fallbackMessage;
+            message = data?.error || fallbackMessage;
         } catch (e) {
-            // Response wasn't JSON — keep the fallback message.
+
         }
-
-        if (res.status === 401) message = 'Invalid ElevenLabs API key.';
-        if (res.status === 429) message = 'ElevenLabs quota exceeded. Try again later or upgrade your plan.';
-
         const err = new Error(message);
         err.status = res.status;
         return err;

@@ -1,5 +1,3 @@
-// Converts a 2-letter ISO region code (e.g. "US", "ID") into its flag emoji
-// using the regional indicator symbol trick — no image assets needed.
 const FLAG_CACHE = new Map();
 
 export function getFlagEmoji(regionCode) {
@@ -15,9 +13,6 @@ export function getFlagEmoji(regionCode) {
     return flag;
 }
 
-// Some environments/voice lists use codes that don't map to a real region
-// (e.g. generic "en" with no country), so DisplayNames + flag lookups are
-// wrapped defensively and always fall back to something readable.
 let langDisplay = null;
 let regionDisplay = null;
 try {
@@ -26,7 +21,7 @@ try {
         regionDisplay = new Intl.DisplayNames(['en'], { type: 'region' });
     }
 } catch (e) {
-    // Intl.DisplayNames unsupported in this browser — fall back to raw tags.
+
 }
 
 function capitalize(str) {
@@ -37,15 +32,10 @@ export function parseLocale(rawTag) {
     const tag = (rawTag || '').replace(/_/g, '-');
     const parts = tag.split('-').filter(Boolean);
     const langCode = (parts[0] || '').toLowerCase();
-    // Region subtags are exactly 2 letters; skip 4-letter script subtags
-    // like "Hans"/"Latn" that can appear between language and region.
     const regionCode = parts.slice(1).find(p => /^[a-zA-Z]{2}$/.test(p));
     return { tag, langCode, regionCode: regionCode ? regionCode.toUpperCase() : null };
 }
 
-// e.g. "en-US" -> "🇺🇸 English (United States)"
-//      "id-ID" -> "🇮🇩 Indonesian (Indonesia)"
-//      "en"    -> "🌐 English"
 export function formatLanguageLabel(rawTag) {
     const { tag, langCode, regionCode } = parseLocale(rawTag);
     if (!langCode) return tag || 'Unknown';
@@ -55,7 +45,7 @@ export function formatLanguageLabel(rawTag) {
         const resolved = langDisplay?.of(langCode);
         if (resolved) langName = capitalize(resolved);
     } catch (e) {
-        // Unrecognized subtag — keep the raw tag as a safe fallback.
+
     }
 
     let regionName = null;
@@ -69,7 +59,6 @@ export function formatLanguageLabel(rawTag) {
     return regionName ? `${flag} ${langName} (${regionName})` : `${flag} ${langName}`;
 }
 
-// Short form for use inline next to a voice name, e.g. "🇺🇸 en-US"
 export function formatFlagOnly(rawTag) {
     const { regionCode } = parseLocale(rawTag);
     return regionCode ? getFlagEmoji(regionCode) : '🌐';

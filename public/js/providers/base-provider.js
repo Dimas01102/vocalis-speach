@@ -1,7 +1,3 @@
-/**
- * Abstract interface for TTS Providers.
- * Future providers (ElevenLabs, Google, Azure) should extend this class.
- */
 export class BaseProvider {
     constructor() {
         this.name = 'Base';
@@ -28,9 +24,6 @@ export class BaseProvider {
     pause() {}
     resume() {}
 
-    // Override in providers that can produce a real downloadable audio file
-    // (e.g. an API-based provider). Browser's Web Speech API cannot expose
-    // its audio output, so the base/default behavior is "not downloadable".
     supportsDownload() {
         return false;
     }
