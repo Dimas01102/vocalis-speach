@@ -9,6 +9,7 @@ import { VoiceGallery } from './components/voice-gallery.js';
 import { SettingsPanel } from './components/settings-panel.js';
 import { AudioPlayer } from './components/audio-player.js';
 import { HistoryPanel } from './components/history-panel.js';
+import { refreshIcons } from './utils/dom.js';
 
 const GENERATE_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Generate Voice`;
 
@@ -16,8 +17,7 @@ class App {
     constructor() {
         this.ttsService = new TTSService();
         this.playbackState = 'idle';
-        this.aiStatus = { elevenlabsConfigured: false, requiresAccessCode: false };
-        this.aiUnlocked = false;
+        this.aiStatus = { elevenlabsConfigured: false };
 
         this.DOM = this.cacheDOM();
         this.init();
@@ -130,12 +130,8 @@ class App {
 
         }
 
-        const cachedCode = sessionStorage.getItem('vocalis_access_code');
-        if (cachedCode) {
-            this.ttsService.getProvider('elevenlabs').setAccessCode(cachedCode);
-        }
-
         this._applyEngineUI('browser');
+        refreshIcons();
 
         try {
             const ok = await this.ttsService.init(); // initializes the default 'browser' provider
@@ -156,9 +152,7 @@ class App {
             this.historyPanel.render();
 
             const savedEngine = appState.get('activeProvider');
-            const provider = this.ttsService.getProvider('elevenlabs');
-            const canAutoReconnect = this.aiStatus.elevenlabsConfigured && (!this.aiStatus.requiresAccessCode || !!provider.accessCode);
-            if (savedEngine === 'elevenlabs' && canAutoReconnect) {
+            if (savedEngine === 'elevenlabs' && this.aiStatus.elevenlabsConfigured) {
                 const restored = await this.switchEngine('elevenlabs');
                 if (!restored) appState.set('activeProvider', 'browser');
             }
@@ -206,19 +200,9 @@ class App {
     }
 
     async switchEngine(key) {
-        if (key === 'elevenlabs') {
-            if (!this.aiStatus.elevenlabsConfigured) {
-
-                this._applyEngineUI('elevenlabs');
-                return false;
-            }
-
-            const provider = this.ttsService.getProvider('elevenlabs');
-            const needsCode = this.aiStatus.requiresAccessCode && !this.aiUnlocked && !provider.accessCode;
-            if (needsCode) {
-                this._applyEngineUI('elevenlabs'); 
-                return false;
-            }
+        if (key === 'elevenlabs' && !this.aiStatus.elevenlabsConfigured) {
+            this._applyEngineUI('elevenlabs');
+            return false;
         }
 
         this.ttsService.setActiveProvider(key);
@@ -230,7 +214,6 @@ class App {
             this.voiceSelector?.renderVoices();
         } else {
             const ok = await this._loadPremiumVoices();
-            this.aiUnlocked = ok;
             if (!ok) this._applyEngineUI('elevenlabs');
         }
 
@@ -240,7 +223,8 @@ class App {
 
     _applyEngineUI(key) {
         const isPremium = key === 'elevenlabs';
-        const showGate = isPremium && !this.aiUnlocked;
+        const ready = isPremium && this.aiStatus.elevenlabsConfigured;
+        const showUnavailable = isPremium && !ready;
 
         this.DOM.engineBrowserBtn.classList.toggle('active', !isPremium);
         this.DOM.enginePremiumBtn.classList.toggle('active', isPremium);
@@ -248,62 +232,13 @@ class App {
         this.DOM.browserVoiceGroup.classList.toggle('hidden', isPremium);
         this.DOM.browserSliders.classList.toggle('hidden', isPremium);
 
-        this.DOM.apiKeySection.classList.toggle('hidden', !showGate);
-        this.DOM.premiumConnected.classList.toggle('hidden', !isPremium || !this.aiUnlocked);
-        this.DOM.voiceGalleryWrap.classList.toggle('hidden', !isPremium || !this.aiUnlocked);
-        this.DOM.premiumSliders.classList.toggle('hidden', !isPremium || !this.aiUnlocked);
+        this.DOM.apiKeySection.classList.toggle('hidden', !showUnavailable);
+        this.DOM.premiumConnected.classList.toggle('hidden', !ready);
+        this.DOM.voiceGalleryWrap.classList.toggle('hidden', !ready);
+        this.DOM.premiumSliders.classList.toggle('hidden', !ready);
 
-        if (showGate) this._renderAiGate();
-    }
-
-    _renderAiGate() {
-        if (!this.aiStatus.elevenlabsConfigured) {
+        if (showUnavailable) {
             this.DOM.apiKeySection.innerHTML = '<p class="api-key-hint">Suara AI belum aktif di server ini.</p>';
-            return;
-        }
-
-        this.DOM.apiKeySection.innerHTML = `
-            <label for="access-code-input">Kode Akses</label>
-            <div class="api-key-row">
-                <input type="password" id="access-code-input" placeholder="Masukkan kode akses" autocomplete="off">
-                <button type="button" id="access-code-btn" class="btn-primary btn-sm">Masuk</button>
-            </div>
-            <p class="api-key-hint">Suara AI di app ini dibatasi pemiliknya. Minta kode akses kalau kamu belum punya.</p>
-        `;
-        const input = this.DOM.apiKeySection.querySelector('#access-code-input');
-        this.DOM.apiKeySection.querySelector('#access-code-btn').addEventListener('click', () => this.submitAccessCode());
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.submitAccessCode();
-        });
-    }
-
-    async submitAccessCode() {
-        const input = this.DOM.apiKeySection.querySelector('#access-code-input');
-        const code = input ? input.value.trim() : '';
-        if (!code) {
-            Toast.error('Masukkan kode akses dulu.');
-            return;
-        }
-
-        const provider = this.ttsService.getProvider('elevenlabs');
-        provider.setAccessCode(code);
-
-        const btn = this.DOM.apiKeySection.querySelector('#access-code-btn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Memeriksa...'; }
-
-        const ok = await this._loadPremiumVoices();
-        if (ok) {
-            this.aiUnlocked = true;
-            sessionStorage.setItem('vocalis_access_code', code);
-            this.ttsService.setActiveProvider('elevenlabs');
-            appState.set('activeProvider', 'elevenlabs');
-            appState.set('voiceURI', '');
-            this._applyEngineUI('elevenlabs');
-            this.checkGenerateState();
-            Toast.success('Kode diterima!');
-        } else {
-            provider.setAccessCode('');
-            if (btn) { btn.disabled = false; btn.textContent = 'Masuk'; }
         }
     }
 
@@ -344,8 +279,11 @@ class App {
     }
 
     _updateRecordingUI(enabled) {
-        this.DOM.recordToggleBtn.textContent = enabled ? 'Matikan Rekam' : 'Aktifkan Rekam & Unduh';
+        const icon = enabled ? 'square' : 'mic';
+        const label = enabled ? 'Matikan Rekam' : 'Aktifkan Rekam & Unduh';
+        this.DOM.recordToggleBtn.innerHTML = `<i data-lucide="${icon}" class="icon icon-inline"></i> ${label}`;
         this.DOM.recordToggleBtn.classList.toggle('recording-active', enabled);
+        refreshIcons();
     }
 
     resolveVoiceName(voiceURI, provider) {
@@ -365,7 +303,7 @@ class App {
         const text = (appState.get('text') || '').trim();
         const voice = appState.get('voiceURI');
         const activeKey = this.ttsService.activeKey;
-        const engineReady = activeKey === 'browser' || this.aiUnlocked;
+        const engineReady = activeKey === 'browser' || this.aiStatus.elevenlabsConfigured;
         this.DOM.generateBtn.disabled = !(text.length > 0 && !!voice && engineReady);
     }
 

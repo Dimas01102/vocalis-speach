@@ -9,18 +9,6 @@ export class ElevenLabsProvider extends BaseProvider {
         this.currentAudio = null;
         this.currentObjectUrl = null;
         this.lastVoiceName = 'voice';
-
-        this.accessCode = '';
-    }
-
-    setAccessCode(code) {
-        this.accessCode = (code || '').trim();
-    }
-
-    _headers(extra = {}) {
-        const headers = { ...extra };
-        if (this.accessCode) headers['x-app-access-code'] = this.accessCode;
-        return headers;
     }
 
     async init() {
@@ -28,7 +16,7 @@ export class ElevenLabsProvider extends BaseProvider {
     }
 
     async getVoices() {
-        const res = await fetch('/api/voices', { headers: this._headers() });
+        const res = await fetch('/api/voices');
         if (!res.ok) {
             throw await this._toError(res, 'Failed to load voices.');
         }
@@ -62,7 +50,7 @@ export class ElevenLabsProvider extends BaseProvider {
         try {
             res = await fetch('/api/tts', {
                 method: 'POST',
-                headers: this._headers({ 'Content-Type': 'application/json' }),
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     text,
                     voiceId: options.voiceURI,

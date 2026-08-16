@@ -1,4 +1,4 @@
-import { createElement } from '../utils/dom.js';
+import { createElement, refreshIcons } from '../utils/dom.js';
 
 export class Modal {
     constructor(title, contentElement, onConfirm) {
@@ -16,7 +16,7 @@ export class Modal {
         container.innerHTML = `
             <div class="modal-header">
                 <h3>${this.title}</h3>
-                <button class="btn-ghost btn-sm close-modal">✕</button>
+                <button class="btn-ghost btn-sm close-modal"><i data-lucide="x" class="icon"></i></button>
             </div>
             <div class="modal-body"></div>
             <div class="modal-footer">
@@ -28,6 +28,7 @@ export class Modal {
         container.querySelector('.modal-body').appendChild(this.contentElement);
         this.overlay.appendChild(container);
         document.body.appendChild(this.overlay);
+        refreshIcons();
 
         this.bindEvents();
     }

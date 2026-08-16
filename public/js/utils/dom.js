@@ -15,3 +15,7 @@ export function addClass(el, className) {
 export function removeClass(el, className) {
     if (el) el.classList.remove(className);
 }
+
+export function refreshIcons() {
+    if (window.lucide) window.lucide.createIcons();
+}
